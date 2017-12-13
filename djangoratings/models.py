@@ -14,11 +14,12 @@ except ImportError:
 from .managers import VoteManager, SimilarUserManager
 
 class Vote(models.Model):
-    content_type    = models.ForeignKey(ContentType, related_name="votes")
+    content_type    = models.ForeignKey(ContentType, related_name="votes", on_delete=models.CASCADE)
     object_id       = models.PositiveIntegerField()
     key             = models.CharField(max_length=32)
     score           = models.IntegerField()
-    user            = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="votes")
+    user            = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="votes",
+                                        on_delete=models.CASCADE)
     ip_address      = models.GenericIPAddressField()
     cookie          = models.CharField(max_length=32, blank=True, null=True)
     date_added      = models.DateTimeField(default=now, editable=False)
@@ -51,7 +52,7 @@ class Vote(models.Model):
     partial_ip_address = property(partial_ip_address)
 
 class Score(models.Model):
-    content_type    = models.ForeignKey(ContentType)
+    content_type    = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id       = models.PositiveIntegerField()
     key             = models.CharField(max_length=32)
     score           = models.IntegerField()
