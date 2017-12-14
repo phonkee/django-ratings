@@ -1,14 +1,13 @@
-from django.db.models import IntegerField, PositiveIntegerField
-from django.db import IntegrityError
-from django.conf import settings
-
-from . import forms
-import itertools
 from datetime import datetime
 
-from .models import Vote, Score
+from django.conf import settings
+from django.db import IntegrityError
+from django.db.models import IntegerField, PositiveIntegerField
+
+from . import forms
 from .default_settings import RATINGS_VOTES_PER_IP
 from .exceptions import *
+from .models import Vote, Score
 
 if 'django.contrib.contenttypes' not in settings.INSTALLED_APPS:
     raise ImportError("djangoratings requires django.contrib.contenttypes in your INSTALLED_APPS")
@@ -27,13 +26,16 @@ try:
 except ImportError:
     now = datetime.now
 
+
 def md5_hexdigest(value):
-    return md5(value).hexdigest()
+    return md5(value.encode('utf-8')).hexdigest()
+
 
 class Rating(object):
     def __init__(self, score, votes):
         self.score = score
         self.votes = votes
+
 
 class RatingManager(object):
     def __init__(self, instance, field):
@@ -72,13 +74,13 @@ class RatingManager(object):
         Returns the weighted average rating."""
         if not (self.votes and self.score):
             return 0
-        return float(self.score)/(self.votes+self.field.weight)
+        return float(self.score) / (self.votes + self.field.weight)
 
     def get_opinion_percent(self):
         """get_opinion_percent()
 
         Returns a neutral-based percentage."""
-        return (self.get_percent()+100)/2
+        return (self.get_percent() + 100) / 2
 
     def get_real_rating(self):
         """get_rating()
@@ -86,16 +88,16 @@ class RatingManager(object):
         Returns the unmodified average rating."""
         if not (self.votes and self.score):
             return 0
-        return float(self.score)/self.votes
+        return float(self.score) / self.votes
 
     def get_rating_for_user(self, user, ip_address=None, cookies={}):
         """get_rating_for_user(user, ip_address=None, cookie=None)
 
         Returns the rating for a user or anonymous IP."""
         kwargs = dict(
-            content_type    = self.get_content_type(),
-            object_id       = self.instance.pk,
-            key             = self.field.key,
+            content_type=self.get_content_type(),
+            object_id=self.instance.pk,
+            key=self.field.key,
         )
 
         if not (user and user.is_authenticated()):
@@ -109,7 +111,8 @@ class RatingManager(object):
         use_cookies = (self.field.allow_anonymous and self.field.use_cookies)
         if use_cookies:
             # TODO: move 'vote-%d.%d.%s' to settings or something
-            cookie_name = 'vote-%d.%d.%s' % (kwargs['content_type'].pk, kwargs['object_id'], kwargs['key'][:6],) # -> md5_hexdigest?
+            cookie_name = 'vote-%d.%d.%s' % (
+            kwargs['content_type'].pk, kwargs['object_id'], kwargs['key'][:6],)  # -> md5_hexdigest?
             cookie = cookies.get(cookie_name)
             if cookie:
                 kwargs['cookie'] = cookie
@@ -126,7 +129,7 @@ class RatingManager(object):
         return
 
     def get_iterable_range(self):
-        return range(1, self.field.range) #started from 1, because 0 is equal to delete
+        return range(1, self.field.range)  # started from 1, because 0 is equal to delete
 
     def disable_auto_now(self, instance):
         self.disabled_auto_now_fields = []
@@ -164,25 +167,26 @@ class RatingManager(object):
             user = None
 
         defaults = dict(
-            score = score,
-            ip_address = ip_address,
+            score=score,
+            ip_address=ip_address,
         )
 
         kwargs = dict(
-            content_type    = self.get_content_type(),
-            object_id       = self.instance.pk,
-            key             = self.field.key,
-            user            = user,
+            content_type=self.get_content_type(),
+            object_id=self.instance.pk,
+            key=self.field.key,
+            user=user,
         )
         if not user:
             kwargs['ip_address'] = ip_address
 
         use_cookies = (self.field.allow_anonymous and self.field.use_cookies)
         if use_cookies:
-            defaults['cookie'] = now().strftime('%Y%m%d%H%M%S%f') # -> md5_hexdigest?
+            defaults['cookie'] = now().strftime('%Y%m%d%H%M%S%f')  # -> md5_hexdigest?
             # TODO: move 'vote-%d.%d.%s' to settings or something
-            cookie_name = 'vote-%d.%d.%s' % (kwargs['content_type'].pk, kwargs['object_id'], kwargs['key'][:6],) # -> md5_hexdigest?
-            cookie = cookies.get(cookie_name) # try to get existent cookie value
+            cookie_name = 'vote-%d.%d.%s' % (
+            kwargs['content_type'].pk, kwargs['object_id'], kwargs['key'][:6],)  # -> md5_hexdigest?
+            cookie = cookies.get(cookie_name)  # try to get existent cookie value
             if not cookie:
                 kwargs['cookie__isnull'] = True
             kwargs['cookie'] = cookie
@@ -205,8 +209,9 @@ class RatingManager(object):
             kwargs.update(defaults)
             if use_cookies:
                 # record with specified cookie was not found ...
-                cookie = defaults['cookie'] # ... thus we need to replace old cookie (if presented) with new one
-                kwargs.pop('cookie__isnull', '') # ... and remove 'cookie__isnull' (if presented) from .create()'s **kwargs
+                cookie = defaults['cookie']  # ... thus we need to replace old cookie (if presented) with new one
+                kwargs.pop('cookie__isnull',
+                           '')  # ... and remove 'cookie__isnull' (if presented) from .create()'s **kwargs
             try:
                 rating, created = Vote.objects.create(**kwargs), True
             except IntegrityError:
@@ -240,17 +245,17 @@ class RatingManager(object):
                 self.instance.save()
                 if self.field.disable_auto_now:
                     self.reenable_auto_now(self.instance)
-            #setattr(self.instance, self.field.name, Rating(score=self.score, votes=self.votes))
+            # setattr(self.instance, self.field.name, Rating(score=self.score, votes=self.votes))
 
             defaults = dict(
-                score   = self.score,
-                votes   = self.votes,
+                score=self.score,
+                votes=self.votes,
             )
 
             kwargs = dict(
-                content_type    = self.get_content_type(),
-                object_id       = self.instance.pk,
-                key             = self.field.key,
+                content_type=self.get_content_type(),
+                object_id=self.instance.pk,
+                key=self.field.key,
             )
 
             try:
@@ -299,20 +304,20 @@ class RatingManager(object):
     def _update(self, commit=False):
         """Forces an update of this rating (useful for when Vote objects are removed)."""
         votes = Vote.objects.filter(
-            content_type    = self.get_content_type(),
-            object_id       = self.instance.pk,
-            key             = self.field.key,
+            content_type=self.get_content_type(),
+            object_id=self.instance.pk,
+            key=self.field.key,
         )
         obj_score = sum([v.score for v in votes])
         obj_votes = len(votes)
 
         score, created = Score.objects.get_or_create(
-            content_type    = self.get_content_type(),
-            object_id       = self.instance.pk,
-            key             = self.field.key,
-            defaults        = dict(
-                score       = obj_score,
-                votes       = obj_votes,
+            content_type=self.get_content_type(),
+            object_id=self.instance.pk,
+            key=self.field.key,
+            defaults=dict(
+                score=obj_score,
+                votes=obj_votes,
             )
         )
         if not created:
@@ -328,6 +333,7 @@ class RatingManager(object):
             if self.field.disable_auto_now:
                 self.reenable_auto_now(self.instance)
 
+
 class RatingCreator(object):
     def __init__(self, field):
         self.field = field
@@ -337,7 +343,7 @@ class RatingCreator(object):
     def __get__(self, instance, type=None):
         if instance is None:
             return self.field
-            #raise AttributeError('Can only be accessed via an instance.')
+            # raise AttributeError('Can only be accessed via an instance.')
         return RatingManager(instance, self.field)
 
     def __set__(self, instance, value):
@@ -347,10 +353,12 @@ class RatingCreator(object):
         else:
             raise TypeError("%s value must be a Rating instance, not '%r'" % (self.field.name, value))
 
+
 class RatingField(IntegerField):
     """
     A rating field contributes two columns to the model instead of the standard single column.
     """
+
     def __init__(self, *args, **kwargs):
         if 'choices' in kwargs:
             raise TypeError("%s invalid attribute 'choices'" % (self.__class__.__name__,))
