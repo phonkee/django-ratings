@@ -159,7 +159,7 @@ class RatingManager(object):
         if score < 0 or score > self.field.range:
             raise InvalidRating("%s is not a valid choice for %s" % (score, self.field.name))
 
-        is_anonymous = (user is None or not user.is_authenticated())
+        is_anonymous = (user is None or not user.is_authenticated)
         if is_anonymous and not self.field.allow_anonymous:
             raise AuthRequired("user must be a user, not '%r'" % (user,))
 
